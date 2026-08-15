@@ -5,6 +5,7 @@ import { z } from 'zod'
 export const maxDuration = 30
 
 const MODEL = 'openai/gpt-5.6-terra'
+const FALLBACK_MODEL = 'fitcoach-smart-local'
 
 const planSchema = z.object({
   title: z.string().min(3).max(100),
@@ -25,6 +26,23 @@ const planSchema = z.object({
     })).min(3).max(10),
   })).max(7),
 })
+
+const fallbackLibraries = {
+  push: ['Supino reto','Supino inclinado com halteres','Desenvolvimento com halteres','Elevação lateral','Crucifixo na máquina','Tríceps na polia','Tríceps francês'],
+  pull: ['Puxada alta','Remada baixa','Remada unilateral','Pulldown','Crucifixo inverso','Rosca direta','Rosca martelo'],
+  quads: ['Agachamento livre','Leg press','Afundo com halteres','Cadeira extensora','Panturrilha em pé','Prancha abdominal','Abdominal infra'],
+  posterior: ['Levantamento terra romeno','Mesa flexora','Elevação pélvica','Agachamento sumô','Cadeira flexora','Panturrilha sentada','Prancha lateral'],
+  full: ['Agachamento livre','Supino reto','Puxada alta','Levantamento terra romeno','Remada baixa','Desenvolvimento com halteres','Prancha abdominal'],
+  conditioning: ['Agachamento goblet','Supino com halteres','Remada baixa','Passada alternada','Puxada alta','Desenvolvimento com halteres','Prancha abdominal'],
+  home: ['Agachamento goblet','Flexão de braços','Remada unilateral com halter','Afundo alternado','Desenvolvimento com halteres','Rosca martelo','Prancha abdominal'],
+}
+
+const fallbackSplits = {
+  3: [['A • Corpo inteiro','full'],['B • Corpo inteiro','conditioning'],['C • Corpo inteiro','full']],
+  4: [['A • Superior empurrar','push'],['B • Inferior quadríceps','quads'],['C • Superior puxar','pull'],['D • Inferior posterior','posterior']],
+  5: [['A • Peito e tríceps','push'],['B • Costas e bíceps','pull'],['C • Pernas','quads'],['D • Posterior e glúteos','posterior'],['E • Corpo inteiro','full']],
+  6: [['A • Push','push'],['B • Pull','pull'],['C • Legs','quads'],['D • Push 2','push'],['E • Pull 2','pull'],['F • Legs 2','posterior']],
+}
 
 function json(res, status, body) {
   res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -74,6 +92,93 @@ function compactContext(student, progress = [], history = [], workouts = []) {
         })),
     })),
   }
+}
+
+function inferFallbackGoal(prompt = '', studentGoal = '') {
+  const value = `${prompt} ${studentGoal}`.toLowerCase()
+  if (/emag|perd|defin|secar|condicion/.test(value)) return 'fatloss'
+  if (/força|forca|power/.test(value)) return 'strength'
+  if (/hipert|massa|ganho/.test(value)) return 'hypertrophy'
+  return 'general'
+}
+
+function fallbackPrescription(goal) {
+  if (goal === 'strength') return { sets: 4, reps: '4-6', rest: 120 }
+  if (goal === 'fatloss') return { sets: 3, reps: '12-15', rest: 45 }
+  if (goal === 'hypertrophy') return { sets: 4, reps: '8-12', rest: 75 }
+  return { sets: 3, reps: '10-12', rest: 60 }
+}
+
+function parseFallbackDays(prompt = '') {
+  const text = prompt.toLowerCase()
+  const match = text.match(/(?:^|\s)([3-6])\s*(?:x|vezes|dias?)/) || text.match(/([3-6])\s*por\s*semana/)
+  return match ? Number(match[1]) : 4
+}
+
+function needsProfessionalReview(prompt = '') {
+  return /dor\s+aguda|les[aã]o\s+recente|p[oó]s[-\s]?operat|reabilita|gravidez\s+com|gr[aá]vida\s+com|cardiovascular|desmaio|neurol[oó]g|fratura|cirurgia\s+recente/i.test(prompt)
+}
+
+function buildFallbackPlan(prompt, student, context) {
+  if (needsProfessionalReview(prompt)) {
+    return {
+      title: 'Avaliação profissional necessária',
+      summary: 'O pedido contém um contexto que não deve ser convertido automaticamente em prescrição de treino.',
+      safety_status: 'needs_professional_review',
+      warnings: [
+        'Faça avaliação profissional e, quando aplicável, obtenha liberação clínica antes de prescrever.',
+        'O modo local não gera treino para contextos de reabilitação ou condição médica relevante.',
+      ],
+      rationale: ['A proteção do aluno tem prioridade sobre a geração automática de ficha.'],
+      workouts: [],
+    }
+  }
+
+  const days = parseFallbackDays(prompt)
+  const goal = inferFallbackGoal(prompt, student.goal || '')
+  const rx = fallbackPrescription(goal)
+  const home = /em\s+casa|somente\s+halter|peso\s+corporal/i.test(prompt)
+  const longer = /1[:h]?30|90\s*min|75\s*min/i.test(prompt)
+  const maxExercises = longer ? 7 : 6
+  const split = fallbackSplits[days] || fallbackSplits[4]
+  const goalLabel = {hypertrophy:'hipertrofia',fatloss:'emagrecimento e condicionamento',strength:'força',general:'condicionamento geral'}[goal]
+
+  const workouts = split.map(([name,key], dayIndex) => {
+    let pool = home ? [...fallbackLibraries.home] : [...fallbackLibraries[key]]
+    if (!home && goal === 'fatloss' && dayIndex % 2 === 1) pool = [...fallbackLibraries.conditioning]
+    return {
+      name: `FIT ${name}`,
+      focus: home ? `Treino em casa com foco em ${goalLabel}` : `Sessão de ${goalLabel}`,
+      exercises: pool.slice(0, maxExercises).map((exercise_name, index) => ({
+        exercise_name,
+        sets: rx.sets,
+        reps: /Prancha/.test(exercise_name) ? '30-45s' : rx.reps,
+        load: null,
+        rest_seconds: /Prancha|Abdominal/.test(exercise_name) ? 45 : rx.rest,
+        notes: index === 0 ? 'Ajustar carga e técnica após avaliação do personal.' : null,
+      })),
+    }
+  })
+
+  const consistency = context.training_consistency?.completed_last_7_days || 0
+  return {
+    title: `Plano Smart • ${days}x por semana`,
+    summary: `Ficha-base de ${goalLabel} gerada pelo modo Smart local para manter o FITCOACH funcionando enquanto o AI Gateway está indisponível. Revise exercícios, volume e cargas antes de salvar.`,
+    safety_status: 'ready',
+    warnings: ['AI Gateway temporariamente indisponível; esta ficha foi gerada pelo FITCOACH Smart local, sem modelo generativo.'],
+    rationale: [
+      `Frequência organizada em ${days} sessões semanais.`,
+      `Prescrição-base ajustada ao objetivo de ${goalLabel}.`,
+      consistency ? `O aluno registrou ${consistency} treino(s) nos últimos 7 dias.` : 'A frequência recente do aluno não foi usada para aumentar volume automaticamente.',
+    ],
+    workouts,
+  }
+}
+
+function shouldUseFallback(error) {
+  const message = String(error?.message || error || '')
+  const status = Number(error?.statusCode || error?.cause?.statusCode || 0)
+  return status === 403 || status === 429 || status >= 500 || /Gateway|credit card|customer_verification_required|AI Gateway/i.test(message)
 }
 
 export default async function handler(req, res) {
@@ -167,32 +272,35 @@ Regras obrigatórias:
 
     const userPrompt = `PEDIDO DO PERSONAL:\n${prompt}\n\nCONTEXTO DO ALUNO (sem nome e sem identificadores):\n${JSON.stringify(context)}`
 
-    const result = await generateText({
-      model: MODEL,
-      reasoning: 'low',
-      system,
-      prompt: userPrompt,
-      output: Output.object({ schema: planSchema }),
-      providerOptions: {
-        gateway: {
-          user: user.id,
-          tags: ['fitcoach', 'level6', 'ai-workout'],
+    try {
+      const result = await generateText({
+        model: MODEL,
+        reasoning: 'low',
+        system,
+        prompt: userPrompt,
+        output: Output.object({ schema: planSchema }),
+        providerOptions: {
+          gateway: {
+            user: user.id,
+            tags: ['fitcoach', 'level6', 'ai-workout'],
+          },
         },
-      },
-    })
+      })
 
-    const plan = result.output
-    if (plan.safety_status === 'ready' && !plan.workouts.length) {
-      return json(res, 502, { error: 'A IA não retornou uma ficha utilizável. Tente reformular o pedido.' })
+      const plan = result.output
+      if (plan.safety_status === 'ready' && !plan.workouts.length) {
+        return json(res, 502, { error: 'A IA não retornou uma ficha utilizável. Tente reformular o pedido.' })
+      }
+
+      return json(res, 200, { ok: true, model: MODEL, fallback: false, plan })
+    } catch (aiError) {
+      console.error('FITCOACH AI provider error', aiError)
+      if (!shouldUseFallback(aiError)) throw aiError
+      const plan = buildFallbackPlan(prompt, student, context)
+      return json(res, 200, { ok: true, model: FALLBACK_MODEL, fallback: true, plan })
     }
-
-    return json(res, 200, {
-      ok: true,
-      model: MODEL,
-      plan,
-    })
   } catch (error) {
     console.error('FITCOACH AI workout error', error)
-    return json(res, 502, { error: 'Não foi possível gerar o treino com IA agora. Tente novamente.' })
+    return json(res, 502, { error: 'Não foi possível gerar o treino agora. Tente novamente.' })
   }
 }
