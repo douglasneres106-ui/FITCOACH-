@@ -83,7 +83,7 @@ async function generateWithAI(students){
     })
     const data=await response.json().catch(()=>({}))
     if(!response.ok)throw new Error(data.error||'Não foi possível gerar o treino.')
-    lastGeneration={student,prompt,plan:data.plan,model:data.model}
+    lastGeneration={student,prompt,plan:data.plan,model:data.model,fallback:Boolean(data.fallback)}
     renderAIPlan(lastGeneration)
   }catch(error){
     button.disabled=false;button.textContent='✦ Gerar com IA'
@@ -92,19 +92,22 @@ async function generateWithAI(students){
 }
 
 function renderAIPlan(generation){
-  const {student,prompt,plan}=generation
+  const {student,prompt,plan,fallback}=generation
   const blocked=plan.safety_status!=='ready'
   const warnings=plan.warnings||[]
   const rationale=plan.rationale||[]
+  const badge=fallback?'✦ FITCOACH SMART • MODO LOCAL':'✦ PLANO GERADO COM IA'
+  const readyTitle=fallback?'✓ Plano Smart pronto para revisão':'✓ Pronto para revisão do personal'
+  const readyText=fallback?'O Gateway de IA está indisponível, então o FITCOACH usou o gerador Smart local para não interromper seu trabalho.':'Edite qualquer campo abaixo antes de salvar.'
   openModal(`<div class="pro6-head">
-      <div><span class="pro6-ai-badge">✦ PLANO GERADO COM IA</span><h2>${esc(plan.title)}</h2><p>${esc(student.name)} • ${esc(plan.summary)}</p></div>
+      <div><span class="pro6-ai-badge">${badge}</span><h2>${esc(plan.title)}</h2><p>${esc(student.name)} • ${esc(plan.summary)}</p></div>
       <button class="icon-btn" onclick="closePro6Modal()" aria-label="Fechar">×</button>
     </div>
-    <div class="pro6-status ${blocked?'review':'ready'}"><strong>${blocked?'⚠ Revisão profissional obrigatória':'✓ Pronto para revisão do personal'}</strong><span>${blocked?'A IA identificou um contexto que não deve ser convertido automaticamente em prescrição.':'Edite qualquer campo abaixo antes de salvar.'}</span></div>
+    <div class="pro6-status ${blocked?'review':'ready'}"><strong>${blocked?'⚠ Revisão profissional obrigatória':readyTitle}</strong><span>${blocked?'O sistema identificou um contexto que não deve ser convertido automaticamente em prescrição.':readyText}</span></div>
     ${warnings.length?`<section class="pro6-warning-box"><span class="eyebrow">ATENÇÃO</span>${warnings.map(w=>`<p>• ${esc(w)}</p>`).join('')}</section>`:''}
-    ${rationale.length?`<details class="pro6-rationale"><summary>Por que a IA montou assim?</summary>${rationale.map(r=>`<p>• ${esc(r)}</p>`).join('')}</details>`:''}
+    ${rationale.length?`<details class="pro6-rationale"><summary>${fallback?'Por que o Smart montou assim?':'Por que a IA montou assim?'}</summary>${rationale.map(r=>`<p>• ${esc(r)}</p>`).join('')}</details>`:''}
     ${plan.workouts?.length?`<div class="pro6-plan-list">${plan.workouts.map((workout,wi)=>workoutEditor(workout,wi)).join('')}</div>`:'<div class="pro6-empty"><strong>Nenhuma ficha foi gerada.</strong><p>Revise o aviso acima e faça uma avaliação profissional antes de continuar.</p></div>'}
-    <section class="pro6-adjust"><label>Ajustar com IA</label><div><input id="pro6Adjustment" maxlength="700" placeholder="Ex.: reduza o volume de pernas e inclua mais deltoide lateral"><button class="btn sec" id="pro6Regenerate">✦ Refazer</button></div></section>
+    <section class="pro6-adjust"><label>${fallback?'Ajustar plano':'Ajustar com IA'}</label><div><input id="pro6Adjustment" maxlength="700" placeholder="Ex.: reduza o volume de pernas e inclua mais deltoide lateral"><button class="btn sec" id="pro6Regenerate">✦ Refazer</button></div></section>
     <div class="actions pro6-actions"><button class="btn sec" id="pro6Back">Novo pedido</button>${!blocked&&plan.workouts?.length?'<button class="btn pro6-save" id="pro6Save">Salvar fichas no aluno</button>':''}</div>`)
 
   document.querySelector('#pro6Back').onclick=()=>openAIStudio(student.id,prompt)
