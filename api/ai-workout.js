@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 export const maxDuration = 30
 
-const MODEL = 'openai/gpt-5.4-mini'
+const MODEL = 'openai/gpt-5.6-terra'
 
 const planSchema = z.object({
   title: z.string().min(3).max(100),
@@ -169,6 +169,7 @@ Regras obrigatórias:
 
     const result = await generateText({
       model: MODEL,
+      reasoning: 'low',
       system,
       prompt: userPrompt,
       output: Output.object({ schema: planSchema }),
