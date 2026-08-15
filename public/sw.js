@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fitcoach-v6'
+const CACHE_NAME = 'fitcoach-v7'
 const APP_SHELL = [
   '/',
   '/index.html',
