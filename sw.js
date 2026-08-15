@@ -1,11 +1,7 @@
-const CACHE_NAME = 'fitcoach-v2'
+const CACHE_NAME = 'fitcoach-v3'
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/main.js',
-  '/pwa.js',
-  '/style.css',
-  '/supabase.js',
   '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
