@@ -1,6 +1,7 @@
-const CACHE_NAME = 'fitcoach-v1'
+const CACHE_NAME = 'fitcoach-v3'
 const APP_SHELL = [
   '/',
+  '/index.html',
   '/manifest.webmanifest',
   '/icon-192.png',
   '/icon-512.png',
@@ -35,10 +36,10 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put('/', copy))
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy))
           return response
         })
-        .catch(() => caches.match('/'))
+        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
     )
     return
   }
