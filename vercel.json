@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/ai-workout", "destination": "/api/ai-workout-gated" },
     { "source": "/atlas-engine", "destination": "https://jixiangying.github.io/anatomy/" },
     { "source": "/atlas-engine/:path*", "destination": "https://jixiangying.github.io/anatomy/:path*" }
   ]
