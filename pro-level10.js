@@ -10,6 +10,8 @@ const cycles={
   monthly:{
     title:'Mensal',
     period:'1 mês',
+    price:'R$ 49,99',
+    priceNote:'por mês',
     eyebrow:'FLEXÍVEL',
     description:'Para quem quer começar sem compromisso de longo prazo.',
     features:['Até 30 alunos','Acesso ao FITCOACH Professional','Alunos, treinos e evolução','Agenda Pro e check-ins','Painel Pro e Smart/IA','Fotos, avisos e PWA instalável'],
@@ -18,18 +20,12 @@ const cycles={
   semiannual:{
     title:'Semestral',
     period:'6 meses',
+    price:'R$ 29,99',
+    priceNote:'por ciclo semestral',
     eyebrow:'RECOMENDADO',
-    description:'Equilíbrio entre flexibilidade e permanência.',
-    features:['Até 30 alunos','Tudo do plano Mensal','Ciclo de 6 meses','Ideal para acompanhamento contínuo','Menos renovações ao longo do ano','Pronto para desconto semestral'],
+    description:'Equilíbrio entre economia e acompanhamento contínuo.',
+    features:['Até 30 alunos','Tudo do plano Mensal','Ciclo de 6 meses','Ideal para acompanhamento contínuo','Menos renovações ao longo do ano','Plano recomendado'],
     tag:'6 meses'
-  },
-  annual:{
-    title:'Anual',
-    period:'12 meses',
-    eyebrow:'MELHOR VALOR',
-    description:'Para profissionais que querem usar o FITCOACH o ano inteiro.',
-    features:['Até 30 alunos','Tudo do plano Semestral','Ciclo de 12 meses','Melhor opção para fidelização','Pronto para maior desconto anual','Operação contínua por 1 ano'],
-    tag:'12 meses'
   }
 }
 
@@ -84,7 +80,8 @@ function cycleCard(key,current){
   return `<article class="pro10-plan ${selected?'selected':''} ${key==='semiannual'?'featured':''}">
     <div class="pro10-plan-top"><span class="pro10-eyebrow">${p.eyebrow}</span>${selected?'<span class="pro10-current">Selecionado</span>':''}</div>
     <h3>${p.title}</h3>
-    <div class="pro10-period"><strong>${p.period}</strong><span>por ciclo</span></div>
+    <div class="pro10-price"><strong>${p.price}</strong><span>${p.priceNote}</span></div>
+    <div class="pro10-period"><span>Ciclo: <b>${p.period}</b></span></div>
     <p>${p.description}</p>
     <ul>${p.features.map(f=>`<li><span>✓</span>${esc(f)}</li>`).join('')}</ul>
     <button class="btn ${selected?'sec':''} full" data-pro10-cycle="${key}">${selected?'Ciclo selecionado':`Escolher ${p.title}`}</button>
@@ -97,16 +94,15 @@ async function openPlans(){
   if(!ctx?.session)return toast('Entre na sua conta para ver os planos.','error')
   if(ctx.profile?.role!=='trainer')return toast('Os planos são destinados à conta do personal.','error')
   const [pref,studentCount]=await Promise.all([getPreference(ctx.session.user.id),getStudentCount(ctx.session.user.id,true)])
-  const current=pref?.billing_cycle||''
+  const current=cycles[pref?.billing_cycle]?pref.billing_cycle:''
   openModal(`<div class="pro10-head">
-    <div><span class="pro10-badge">FITCOACH PROFESSIONAL • NÍVEL 10</span><h2>Escolha seu ciclo</h2><p>Mensal, semestral ou anual. Todos mantêm os recursos Professional e permitem até ${STUDENT_LIMIT} alunos; o que muda é o período de cobrança.</p></div>
+    <div><span class="pro10-badge">FITCOACH PROFESSIONAL • NÍVEL 10</span><h2>Escolha seu plano</h2><p>Mensal ou Semestral. Os dois incluem os recursos Professional e permitem até ${STUDENT_LIMIT} alunos.</p></div>
     <button class="icon-btn" onclick="closePro10Modal()" aria-label="Fechar">×</button>
   </div>
   <div class="pro10-status"><div><span>CARTEIRA DE ALUNOS</span><strong>${studentCount}/${STUDENT_LIMIT} alunos</strong></div><p>${studentCount>=STUDENT_LIMIT?'Limite atingido. Para cadastrar outro aluno, será necessário liberar uma vaga ou futuramente migrar para um plano com limite maior.':`Você ainda pode cadastrar ${STUDENT_LIMIT-studentCount} ${STUDENT_LIMIT-studentCount===1?'aluno':'alunos'} neste plano.`}</p></div>
-  <div class="pro10-status"><div><span>STATUS DA COBRANÇA</span><strong>Checkout em preparação</strong></div><p>Selecionar um ciclo agora <b>não gera cobrança</b>. Sua preferência ficará salva até o pagamento online ser conectado.</p></div>
-  <div class="pro10-grid">${['monthly','semiannual','annual'].map(k=>cycleCard(k,current)).join('')}</div>
-  <div class="pro10-pricing-note"><strong>Limite do Professional</strong><span>Mensal, Semestral e Anual incluem até ${STUDENT_LIMIT} alunos ativos na carteira do personal.</span></div>
-  <div class="pro10-pricing-note"><strong>Próxima configuração</strong><span>Os valores em R$ serão adicionados antes de ativar o checkout. Assim não publicamos preços que você ainda não aprovou.</span></div>`)
+  <div class="pro10-status"><div><span>STATUS DA COBRANÇA</span><strong>Checkout em preparação</strong></div><p>Os preços já estão definidos, mas selecionar um plano agora <b>não gera cobrança</b>. O pagamento online será conectado em uma próxima etapa.</p></div>
+  <div class="pro10-grid">${['monthly','semiannual'].map(k=>cycleCard(k,current)).join('')}</div>
+  <div class="pro10-pricing-note"><strong>Limite do Professional</strong><span>Mensal e Semestral incluem até ${STUDENT_LIMIT} alunos ativos na carteira do personal.</span></div>`)
   document.querySelectorAll('[data-pro10-cycle]').forEach(btn=>btn.onclick=()=>selectCycle(btn.dataset.pro10Cycle))
 }
 
@@ -165,7 +161,7 @@ async function enhanceHome(){
     const pref=await getPreference(ctx.session.user.id)
     const b=document.createElement('button')
     b.className='btn sec pro10-home-btn';b.id='pro10PlansHome';b.type='button'
-    b.innerHTML=pref?.billing_cycle?`◆ Plano: ${cycles[pref.billing_cycle]?.title||'Professional'}`:'◆ Ver planos'
+    b.innerHTML=cycles[pref?.billing_cycle]?`◆ Plano: ${cycles[pref.billing_cycle].title}`:'◆ Ver planos'
     b.onclick=openPlans;quick.appendChild(b)
   }
   const badge=document.querySelector('.version-badge');if(badge)badge.textContent='v10'
