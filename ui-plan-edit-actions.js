@@ -3,12 +3,14 @@
   const isLogin = () => !!document.querySelector('input[type="password"], [data-login], .login, .login-screen, #login');
   const findText = (texts) => [...document.querySelectorAll('button,a,[role="button"],h1,h2,h3')].find(el => texts.some(t => el.textContent?.trim().toLowerCase().includes(t)));
 
-  function addEditToWorkoutArea() {
+  function addEditToStudentWorkoutArea() {
     if (isLogin() || document.querySelector('.fc-edit-workout')) return;
-    // Um único botão, exclusivamente na área de fichas/treinos.
-    const anchor = findText(['ficha de treino', 'fichas de treino', 'treinos']);
-    if (!anchor) return;
-    const parent = anchor.closest('section,article') || anchor.parentElement;
+    // O Editar Treino NÃO pertence ao menu inferior. Ele só aparece dentro da área do aluno, junto às fichas/treinos.
+    const student = findText(['alunos', 'aluno']);
+    if (!student) return;
+    const workout = [...document.querySelectorAll('button,a,[role="button"],h1,h2,h3')].find(el => /ficha de treino|fichas de treino|treinos/i.test(el.textContent || ''));
+    if (!workout) return;
+    const parent = workout.closest('section,article') || workout.parentElement;
     if (!parent || !/treino|ficha/i.test(parent.textContent || '')) return;
     const btn = document.createElement('button');
     btn.className = 'btn fc-edit-workout';
@@ -16,6 +18,15 @@
     btn.textContent = '✎ Editar treino';
     btn.onclick = () => window.FITCOACH_UI?.editWorkout?.();
     parent.appendChild(btn);
+  }
+
+  function removeEditFromBottomNav() {
+    // Remove qualquer botão de editar que tenha sido inserido no menu inferior.
+    document.querySelectorAll('nav,footer,[class*="bottom"],[class*="navbar"],[class*="tabbar"]').forEach(nav => {
+      nav.querySelectorAll('.fc-edit-workout,button,a,[role="button"]').forEach(el => {
+        if (/editar treino/i.test(el.textContent || '')) el.remove();
+      });
+    });
   }
 
   function addPlansBesideBadge() {
@@ -61,7 +72,8 @@
       document.querySelectorAll('.fc-edit-workout,.fc-plans,.fc-ai-help').forEach(e=>e.remove());
       return;
     }
-    addEditToWorkoutArea(); addPlansBesideBadge(); wireAIWithWorkoutBuilder();
+    removeEditFromBottomNav();
+    addEditToStudentWorkoutArea(); addPlansBesideBadge(); wireAIWithWorkoutBuilder();
   };
   sync();
   new MutationObserver(sync).observe(document.body,{childList:true,subtree:true});
