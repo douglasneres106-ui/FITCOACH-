@@ -6,8 +6,6 @@ import { supabase } from './supabase'
   let planCache = null
   let toastTimer = null
 
-  const esc = (value = '') => String(value).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]))
-
   function toast(message, type = 'ok') {
     let el = document.querySelector('#fcPlanToast')
     if (!el) {
@@ -30,8 +28,7 @@ import { supabase } from './supabase'
       .fc-plan-free-card .pro10-plan-top{justify-content:space-between}
       .fc-plan-free-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.07);color:#c8d0ca;font-size:10px;font-weight:800;letter-spacing:.08em}
       .fc-plan-pro-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:rgba(114,227,160,.12);color:#72e3a0;font-size:10px;font-weight:800;letter-spacing:.08em}
-      .fc-plan-ai{font-weight:800}
-      .fc-plan-ai.locked{color:#9ca69f}
+      .fc-plan-ai{font-weight:800}.fc-plan-ai.locked{color:#9ca69f}
       .fc-plan-note{margin-top:14px;padding:14px 16px;border-radius:14px;background:rgba(114,227,160,.06);border:1px solid rgba(114,227,160,.12);display:flex;gap:10px;flex-direction:column}
       .fc-plan-note strong{font-size:12px;color:#72e3a0}.fc-plan-note span{font-size:12px;color:#aab3ad;line-height:1.5}
       .fc-plan-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100000;padding:12px 16px;border-radius:12px;background:#151b17;color:#f5f7f5;border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 36px rgba(0,0,0,.35);font:600 13px/1.35 system-ui,-apple-system,sans-serif}
@@ -56,13 +53,6 @@ import { supabase } from './supabase'
       label: cycle === 'monthly' ? 'Pro Mensal' : cycle === 'semiannual' ? 'Pro Semestral' : 'Free',
     }
     return planCache
-  }
-
-  function currentCycleFromCards() {
-    const selected = document.querySelector('.pro10-plan.selected h3')?.textContent?.toLowerCase() || ''
-    if (selected.includes('mensal')) return 'monthly'
-    if (selected.includes('semestral')) return 'semiannual'
-    return null
   }
 
   async function downgradeToFree() {
@@ -146,6 +136,15 @@ import { supabase } from './supabase'
       pricing?.insertAdjacentElement('afterend', note)
     }
 
+    modal.querySelectorAll('[data-pro10-cycle]').forEach(btn => {
+      if (btn.dataset.fcPlanBound) return
+      btn.dataset.fcPlanBound = 'true'
+      btn.addEventListener('click', () => {
+        planCache = null
+        setTimeout(enhance, 300)
+      }, true)
+    })
+
     const freeButton = modal.querySelector('#fcUseFree')
     if (freeButton && !freeButton.dataset.bound) {
       freeButton.dataset.bound = 'true'
@@ -156,11 +155,6 @@ import { supabase } from './supabase'
           await downgradeToFree()
         }
       }
-    }
-
-    if (currentCycleFromCards()) {
-      // Existing Pro selection buttons continue using the original Level 10 flow.
-      // The overlay only adds the Free option and the Pro/AI messaging.
     }
   }
 
@@ -189,7 +183,6 @@ import { supabase } from './supabase'
       if (!looksLikeAi || /planos|plano/.test(text)) return
       if (plan.isPro) {
         el.removeAttribute('data-fc-ai-locked')
-        el.title = el.title.replace(/ • IA disponível somente no Pro\.?/g, '')
         return
       }
       el.setAttribute('data-fc-ai-locked', 'true')
