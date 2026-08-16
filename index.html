@@ -22,27 +22,14 @@
     <div class="install-help hidden" id="installHelp" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle">
       <div class="install-help-card"><button class="install-help-close" id="closeInstallHelp" type="button" aria-label="Fechar">×</button><h2 id="installHelpTitle">Instalar FITCOACH no iPhone</h2><p>No Safari, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>.</p><button class="btn" id="confirmInstallHelp" type="button">Entendi</button></div>
     </div>
-    <script src="./boot-guard.js"></script>
+    <script>
+      (() => {
+        const app = document.getElementById('app')
+        if (!app) return
+        app.innerHTML = '<section style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#070a08;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif"><div style="text-align:center"><div style="font-size:11px;letter-spacing:.16em;opacity:.55;font-weight:800">FITCOACH PROFESSIONAL</div><div style="width:30px;height:30px;margin:18px auto;border:3px solid rgba(255,255,255,.12);border-top-color:#72e3a0;border-radius:50%;animation:fcspin .8s linear infinite"></div><strong style="font-size:18px">Carregando FITCOACH…</strong></div></section><style>@keyframes fcspin{to{transform:rotate(360deg)}}</style>'
+      })()
+    </script>
     <script type="module" src="./main.js"></script>
-    <script type="module" src="./pro-level2.js"></script>
-    <script type="module" src="./pro-level3.js"></script>
-    <script type="module" src="./pro-level4.js"></script>
-    <script type="module" src="./pro-level5.js"></script>
-    <script type="module" src="./pro-level6.js"></script>
-    <script type="module" src="./pro-level7.js"></script>
-    <script type="module" src="./pro-level8.js"></script>
-    <script type="module" src="./pro-level9.js"></script>
-    <script type="module" src="./pro-level10.js"></script>
-    <script type="module" src="./pro-level11.js"></script>
-    <script type="module" src="./atlas-3d.js"></script>
-    <script type="module" src="./pro-level13.js"></script>
-    <script type="module" src="./atlas-ptbr-i18n.js"></script>
-    <script type="module" src="./atlas-ptbr-embed.js"></script>
-    <script type="module" src="./atlas-professional-v5.js"></script>
-    <script type="module" src="./atlas-professional-panel.js"></script>
-    <script type="module" src="./atlas-pro-dashboard.js"></script>
-    <script type="module" src="./atlas-pro-workout-builder.js"></script>
-    <script type="module" src="./fitcoach-pro-dashboard.js"></script>
-    <script type="module" src="./pwa.js"></script>
+    <script type="module" src="./features-loader.js"></script>
   </body>
 </html>
