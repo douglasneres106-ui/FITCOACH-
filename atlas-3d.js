@@ -1,65 +1,19 @@
-/* FITCOACH Atlas 3D — real GLB viewer */
+/* FITCOACH Atlas 3D — immersive anatomy viewer */
 const MODEL_VIEWER_SRC='https://ajax.googleapis.com/ajax/libs/model-viewer/4.1.0/model-viewer.min.js';
 const MODEL_SRC='https://raw.githubusercontent.com/UMRAM-Bilkent/supine-human-model/main/assets/human_posed.glb';
-const STYLE_ID='fitcoach-atlas-real-3d-style';
-
-function installStyle(){
-  if(document.getElementById(STYLE_ID))return;
-  const s=document.createElement('style');s.id=STYLE_ID;
-  s.textContent=`
-    .pro12-real3d-wrap{position:relative;width:100%;min-height:420px;border-radius:24px;overflow:hidden;background:radial-gradient(circle at 50% 35%,rgba(114,227,160,.12),rgba(7,10,8,.96) 62%);border:1px solid rgba(255,255,255,.08)}
-    .pro12-real3d-wrap model-viewer{width:100%;height:420px;background:transparent;--poster-color:transparent;touch-action:pan-y;}
-    .pro12-real3d-controls{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px;justify-content:center;pointer-events:none}
-    .pro12-real3d-controls button{pointer-events:auto;border:1px solid rgba(255,255,255,.12);background:rgba(10,14,12,.86);color:#fff;border-radius:999px;padding:9px 14px;font-size:12px;backdrop-filter:blur(10px)}
-    .pro12-real3d-note{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.58)}
-    .pro12-real3d-dot{width:7px;height:7px;border-radius:50%;background:#72e3a0;box-shadow:0 0 12px rgba(114,227,160,.8)}
-    @media(max-width:600px){.pro12-real3d-wrap,.pro12-real3d-wrap model-viewer{min-height:390px;height:390px}}
-  `;document.head.appendChild(s)
-}
-
-function loadViewer(){return new Promise((resolve,reject)=>{
-  if(customElements.get('model-viewer'))return resolve();
-  const existing=document.querySelector(`script[src="${MODEL_VIEWER_SRC}"]`);
-  if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}
-  const script=document.createElement('script');script.type='module';script.src=MODEL_VIEWER_SRC;script.onload=resolve;script.onerror=reject;document.head.appendChild(script)
-})}
-
-async function enhanceAtlas(root=document){
-  installStyle();
-  const anatomy=root.querySelector('.pro12-anatomy');
-  if(!anatomy||anatomy.dataset.real3d==='1')return;
-  anatomy.dataset.real3d='1';
-  try{await loadViewer()}catch(e){console.error('FITCOACH Atlas 3D viewer failed to load',e);anatomy.dataset.real3d='0';return}
-
-  const oldSvg=anatomy.querySelector('svg');
-  const wrap=document.createElement('div');wrap.className='pro12-real3d-wrap';
-  const viewer=document.createElement('model-viewer');
-  viewer.setAttribute('src',MODEL_SRC);
-  viewer.setAttribute('alt','Modelo humano 3D interativo do Atlas Muscular FITCOACH');
-  viewer.setAttribute('camera-controls','');
-  viewer.setAttribute('touch-action','pan-y');
-  viewer.setAttribute('auto-rotate','');
-  viewer.setAttribute('rotation-per-second','12deg');
-  viewer.setAttribute('interaction-prompt','auto');
-  viewer.setAttribute('shadow-intensity','0.7');
-  viewer.setAttribute('exposure','0.9');
-  viewer.setAttribute('camera-orbit','0deg 78deg 2.8m');
-  viewer.setAttribute('field-of-view','30deg');
-  wrap.appendChild(viewer);
-
-  const controls=document.createElement('div');controls.className='pro12-real3d-controls';
-  controls.innerHTML='<button type="button" data-real3d="front">Frontal</button><button type="button" data-real3d="back">Posterior</button><button type="button" data-real3d="reset">Resetar</button>';
-  wrap.appendChild(controls);
-  oldSvg?.replaceWith(wrap);
-
-  const setOrbit=side=>viewer.setAttribute('camera-orbit',`${side==='back'?180:0}deg 78deg 2.8m`);
-  controls.querySelector('[data-real3d="front"]').onclick=()=>setOrbit('front');
-  controls.querySelector('[data-real3d="back"]').onclick=()=>setOrbit('back');
-  controls.querySelector('[data-real3d="reset"]').onclick=()=>{setOrbit('front');viewer.setAttribute('camera-target','0m 0.9m 0m');viewer.setAttribute('camera-orbit','0deg 78deg 2.8m')};
-
-  const caption=root.querySelector('.pro12-map-caption');
-  if(caption&&!caption.querySelector('.pro12-real3d-note')){const n=document.createElement('div');n.className='pro12-real3d-note';n.innerHTML='<span class="pro12-real3d-dot"></span><span>Modelo 3D real • gire com o dedo • pinça para zoom</span>';caption.appendChild(n)}
-}
-
-new MutationObserver(()=>enhanceAtlas()).observe(document.documentElement,{childList:true,subtree:true});
-addEventListener('load',()=>enhanceAtlas());
+const STYLE_ID='fitcoach-atlas-immersive-3d-style';
+function installStyle(){if(document.getElementById(STYLE_ID))return;const s=document.createElement('style');s.id=STYLE_ID;s.textContent=`
+.pro12-real3d-wrap{position:relative;width:100%;min-height:540px;border-radius:28px;overflow:hidden;background:radial-gradient(circle at 50% 28%,rgba(115,232,166,.18),rgba(18,24,21,.94) 38%,#050806 78%);border:1px solid rgba(255,255,255,.11);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 24px 60px rgba(0,0,0,.35)}
+.pro12-real3d-wrap:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.3) 100%);pointer-events:none;z-index:1}
+.pro12-real3d-wrap model-viewer{position:relative;z-index:0;width:100%;height:540px;background:transparent;--poster-color:transparent;--progress-bar-color:#72e3a0;touch-action:none;outline:none}
+.pro12-real3d-controls{position:absolute;z-index:3;left:12px;right:12px;bottom:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;pointer-events:none}
+.pro12-real3d-controls button{pointer-events:auto;border:1px solid rgba(255,255,255,.14);background:rgba(8,12,10,.84);color:#fff;border-radius:999px;padding:10px 15px;font-size:12px;font-weight:700;backdrop-filter:blur(14px);box-shadow:0 8px 20px rgba(0,0,0,.22)}
+.pro12-real3d-controls button.active{border-color:rgba(114,227,160,.65);background:rgba(52,105,76,.55)}
+.pro12-real3d-badge{position:absolute;z-index:3;top:14px;left:14px;padding:7px 10px;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(7,10,8,.72);color:rgba(255,255,255,.8);font-size:11px;backdrop-filter:blur(12px)}
+.pro12-real3d-note{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.62)}
+.pro12-real3d-dot{width:7px;height:7px;border-radius:50%;background:#72e3a0;box-shadow:0 0 12px rgba(114,227,160,.8);flex:none}
+@media(max-width:600px){.pro12-real3d-wrap,.pro12-real3d-wrap model-viewer{min-height:500px;height:500px}}
+`;document.head.appendChild(s)}
+function loadViewer(){return new Promise((resolve,reject)=>{if(customElements.get('model-viewer'))return resolve();const existing=document.querySelector(`script[src="${MODEL_VIEWER_SRC}"]`);if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}const script=document.createElement('script');script.type='module';script.src=MODEL_VIEWER_SRC;script.onload=resolve;script.onerror=reject;document.head.appendChild(script)})}
+async function enhanceAtlas(root=document){installStyle();const anatomy=root.querySelector('.pro12-anatomy');if(!anatomy||anatomy.dataset.immersive3d==='1')return;anatomy.dataset.immersive3d='1';try{await loadViewer()}catch(e){console.error('FITCOACH Atlas 3D viewer failed',e);anatomy.dataset.immersive3d='0';return}const oldSvg=anatomy.querySelector('svg');const wrap=document.createElement('div');wrap.className='pro12-real3d-wrap';const badge=document.createElement('div');badge.className='pro12-real3d-badge';badge.textContent='● ATLAS 3D INTERATIVO';wrap.appendChild(badge);const viewer=document.createElement('model-viewer');viewer.setAttribute('src',MODEL_SRC);viewer.setAttribute('alt','Modelo humano 3D interativo do Atlas Muscular FITCOACH');viewer.setAttribute('camera-controls','');viewer.setAttribute('touch-action','none');viewer.setAttribute('auto-rotate','');viewer.setAttribute('rotation-per-second','8deg');viewer.setAttribute('interaction-prompt','auto');viewer.setAttribute('shadow-intensity','1');viewer.setAttribute('shadow-softness','0.65');viewer.setAttribute('exposure','1.05');viewer.setAttribute('environment-image','neutral');viewer.setAttribute('camera-orbit','0deg 75deg 2.55m');viewer.setAttribute('field-of-view','28deg');viewer.setAttribute('disable-pan','');wrap.appendChild(viewer);const controls=document.createElement('div');controls.className='pro12-real3d-controls';controls.innerHTML='<button type="button" data-real3d="front" class="active">Frontal</button><button type="button" data-real3d="back">Posterior</button><button type="button" data-real3d="left">Lateral</button><button type="button" data-real3d="reset">Resetar</button><button type="button" data-real3d="spin">Girar 360°</button>';wrap.appendChild(controls);oldSvg?.replaceWith(wrap);const buttons=[...controls.querySelectorAll('button')];const setOrbit=side=>{const map={front:'0deg 75deg 2.55m',back:'180deg 75deg 2.55m',left:'90deg 75deg 2.55m'};viewer.setAttribute('camera-orbit',map[side]||map.front);buttons.forEach(b=>b.classList.toggle('active',b.dataset.real3d===side))};controls.querySelector('[data-real3d="front"]').onclick=()=>{viewer.removeAttribute('auto-rotate');setOrbit('front')};controls.querySelector('[data-real3d="back"]').onclick=()=>{viewer.removeAttribute('auto-rotate');setOrbit('back')};controls.querySelector('[data-real3d="left"]').onclick=()=>{viewer.removeAttribute('auto-rotate');setOrbit('left')};controls.querySelector('[data-real3d="reset"]').onclick=()=>{viewer.removeAttribute('auto-rotate');viewer.setAttribute('camera-target','0m 0.9m 0m');setOrbit('front')};controls.querySelector('[data-real3d="spin"]').onclick=()=>{viewer.setAttribute('auto-rotate','');viewer.setAttribute('rotation-per-second','8deg');buttons.forEach(b=>b.classList.toggle('active',b.dataset.real3d==='spin'))};const caption=root.querySelector('.pro12-map-caption');if(caption&&!caption.querySelector('.pro12-real3d-note')){const n=document.createElement('div');n.className='pro12-real3d-note';n.innerHTML='<span class="pro12-real3d-dot"></span><span>3D real • gire livremente • zoom com dois dedos • vista lateral • rotação 360°</span>';caption.appendChild(n)}}
+new MutationObserver(()=>enhanceAtlas()).observe(document.documentElement,{childList:true,subtree:true});addEventListener('load',()=>enhanceAtlas());
