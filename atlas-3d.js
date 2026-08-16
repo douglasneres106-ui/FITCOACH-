@@ -1,39 +1,5 @@
-/* FITCOACH Atlas 3D visual layer — preserves the existing interactive muscle map. */
-const STYLE_ID = 'fitcoach-atlas-3d-style'
-
-function installStyle() {
-  if (document.getElementById(STYLE_ID)) return
-  const style = document.createElement('style')
-  style.id = STYLE_ID
-  style.textContent = `
-    .pro12-anatomy{position:relative;overflow:hidden;border-radius:28px;background:radial-gradient(circle at 50% 18%,rgba(255,255,255,.12),transparent 38%),linear-gradient(145deg,#0d1511,#070a08 72%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),0 24px 70px rgba(0,0,0,.28)}
-    .pro12-anatomy:before{content:"ATLAS 3D • ANATOMIA MUSCULAR";position:absolute;left:18px;top:16px;z-index:4;font-size:10px;letter-spacing:.16em;font-weight:800;color:rgba(255,255,255,.52)}
-    .pro12-anatomy svg{filter:drop-shadow(0 22px 28px rgba(0,0,0,.34));transform:scale(1.025);transform-origin:center}
-    .pro12-anatomy .muscle{transition:filter .2s ease,opacity .2s ease,transform .2s ease}
-    .pro12-anatomy .muscle:hover{filter:brightness(1.25) drop-shadow(0 0 7px rgba(90,210,140,.45));cursor:pointer}
-    .pro12-map-labels{z-index:6}
-    .pro12-map-labels button{backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,.2)}
-    .pro12-map-labels button.active{box-shadow:0 0 0 1px rgba(105,230,153,.48),0 10px 30px rgba(40,180,100,.18)}
-    .pro12-3d-note{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.52)}
-    .pro12-3d-dot{width:7px;height:7px;border-radius:50%;background:#72e3a0;box-shadow:0 0 12px rgba(114,227,160,.8)}
-  `
-  document.head.appendChild(style)
-}
-
-function enhanceAtlas(root=document) {
-  installStyle()
-  const anatomy = root.querySelector('.pro12-anatomy')
-  if (!anatomy || anatomy.dataset.enhanced==='1') return
-  anatomy.dataset.enhanced='1'
-  const caption = root.querySelector('.pro12-map-caption')
-  if (caption && !caption.querySelector('.pro12-3d-note')) {
-    const note = document.createElement('div')
-    note.className='pro12-3d-note'
-    note.innerHTML='<span class="pro12-3d-dot"></span><span>Mapa anatômico interativo • toque em uma região para explorar</span>'
-    caption.appendChild(note)
-  }
-}
-
-const observer = new MutationObserver(()=>enhanceAtlas())
-observer.observe(document.documentElement,{childList:true,subtree:true})
-window.addEventListener('load',()=>enhanceAtlas())
+/* FITCOACH Atlas 3D — interactive anatomy layer */
+const STYLE_ID='fitcoach-atlas-3d-style';
+function installStyle(){if(document.getElementById(STYLE_ID))return;const s=document.createElement('style');s.id=STYLE_ID;s.textContent=`.pro12-anatomy{perspective:1000px;touch-action:none}.pro12-anatomy svg{transform-style:preserve-3d;transition:transform .12s ease;cursor:grab}.pro12-anatomy svg.is-dragging{cursor:grabbing}.pro12-3d-note{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.58)}.pro12-3d-dot{width:7px;height:7px;border-radius:50%;background:#72e3a0;box-shadow:0 0 12px rgba(114,227,160,.8)}`;document.head.appendChild(s)}
+function enhanceAtlas(root=document){installStyle();const a=root.querySelector('.pro12-anatomy');if(!a||a.dataset.enhanced==='1')return;a.dataset.enhanced='1';const svg=a.querySelector('svg');if(!svg)return;let rx=0,ry=0,drag=false,sx=0,sy=0;const apply=()=>{svg.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg) scale(1.02)`};svg.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;sy=e.clientY;svg.classList.add('is-dragging');svg.setPointerCapture?.(e.pointerId)});svg.addEventListener('pointermove',e=>{if(!drag)return;ry+=(e.clientX-sx)*.45;rx=Math.max(-35,Math.min(35,rx-(e.clientY-sy)*.25));sx=e.clientX;sy=e.clientY;apply()});const end=()=>{drag=false;svg.classList.remove('is-dragging')};svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',end);svg.addEventListener('wheel',e=>{e.preventDefault();const z=Math.max(.92,Math.min(1.18,(parseFloat(svg.dataset.zoom)||1)-e.deltaY*.0005));svg.dataset.zoom=z;svg.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg) scale(${z})`},{passive:false});const caption=root.querySelector('.pro12-map-caption');if(caption&&!caption.querySelector('.pro12-3d-note')){const n=document.createElement('div');n.className='pro12-3d-note';n.innerHTML='<span class="pro12-3d-dot"></span><span>3D interativo • arraste para girar • pinça/scroll para aproximar</span>';caption.appendChild(n)}}
+new MutationObserver(()=>enhanceAtlas()).observe(document.documentElement,{childList:true,subtree:true});addEventListener('load',()=>enhanceAtlas());
