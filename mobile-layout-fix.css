@@ -1,0 +1,66 @@
+/* FITCOACH mobile safe-area layout fix */
+#installAppButton{
+  z-index:70;
+}
+
+@media (max-width: 700px){
+  body{
+    padding-bottom:calc(112px + env(safe-area-inset-bottom));
+  }
+
+  /* Install CTA: one clean row, always above the bottom navigation. */
+  #installAppButton.install-app-btn,
+  #installAppButton:not(.hidden){
+    position:fixed !important;
+    left:20px !important;
+    right:20px !important;
+    bottom:calc(88px + env(safe-area-inset-bottom)) !important;
+    width:auto !important;
+    max-width:430px !important;
+    margin:0 auto !important;
+    min-height:56px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    padding:14px 20px !important;
+    border-radius:18px !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+
+  /* Keep the AI launcher in its own lane above the install CTA. */
+  #fc-ai-btn,
+  #fcGlobalActions,
+  [data-fc-ai-launcher]{
+    z-index:75 !important;
+  }
+
+  #fc-ai-btn{
+    position:fixed !important;
+    right:18px !important;
+    bottom:calc(158px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* If the launcher is a compact action container, don't let it cover the CTA. */
+  #fcGlobalActions{
+    bottom:calc(158px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Bottom navigation stays above page content and below the install CTA. */
+  .bottom-nav,
+  .mobile-bottom-nav,
+  nav[aria-label="Navegação principal"]{
+    z-index:60 !important;
+  }
+
+  .shell{
+    padding-bottom:calc(190px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (min-width:701px){
+  #installAppButton.install-app-btn{
+    max-width:420px;
+  }
+}
