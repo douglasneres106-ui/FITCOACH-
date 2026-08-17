@@ -8,12 +8,21 @@ let deferredInstallPrompt = null
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
 
-function showInstallButton() {
-  if (!isStandalone) installButton.classList.remove('hidden')
+// O botão de instalação deve existir somente na tela de login.
+function isLoginScreen() {
+  return !!document.querySelector('.auth-screen input[type="password"]')
+}
+
+function syncInstallButton() {
+  if (!installButton) return
+  const canShow = !isStandalone && isLoginScreen()
+  installButton.classList.toggle('hidden', !canShow)
+  if (installHelp && !canShow) installHelp.classList.add('hidden')
 }
 
 function hideInstallButton() {
-  installButton.classList.add('hidden')
+  installButton?.classList.add('hidden')
+  installHelp?.classList.add('hidden')
 }
 
 if ('serviceWorker' in navigator) {
@@ -27,7 +36,7 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault()
   deferredInstallPrompt = event
-  showInstallButton()
+  syncInstallButton()
 })
 
 window.addEventListener('appinstalled', () => {
@@ -35,26 +44,33 @@ window.addEventListener('appinstalled', () => {
   hideInstallButton()
 })
 
-installButton.addEventListener('click', async () => {
+installButton?.addEventListener('click', async () => {
+  if (!isLoginScreen()) return
+
   if (deferredInstallPrompt) {
     deferredInstallPrompt.prompt()
     await deferredInstallPrompt.userChoice
     deferredInstallPrompt = null
-    hideInstallButton()
+    syncInstallButton()
     return
   }
 
-  if (isIOS) installHelp.classList.remove('hidden')
+  if (isIOS) installHelp?.classList.remove('hidden')
 })
 
 function dismissInstallHelp() {
-  installHelp.classList.add('hidden')
+  installHelp?.classList.add('hidden')
 }
 
-closeInstallHelp.addEventListener('click', dismissInstallHelp)
-confirmInstallHelp.addEventListener('click', dismissInstallHelp)
-installHelp.addEventListener('click', (event) => {
+closeInstallHelp?.addEventListener('click', dismissInstallHelp)
+confirmInstallHelp?.addEventListener('click', dismissInstallHelp)
+installHelp?.addEventListener('click', (event) => {
   if (event.target === installHelp) dismissInstallHelp()
 })
 
-if (isIOS) showInstallButton()
+// O app troca de tela dinamicamente após o login; observa essas mudanças
+// para esconder imediatamente o botão quando o usuário entra no app.
+const installVisibilityObserver = new MutationObserver(() => syncInstallButton())
+installVisibilityObserver.observe(document.body, { childList: true, subtree: true })
+
+syncInstallButton()
