@@ -1,7 +1,7 @@
 import './pro-level10.css'
 import { supabase } from './supabase'
 
-const STUDENT_LIMIT=30
+const PLAN_LIMITS={free:10,semiannual:15,monthly:30}
 let scheduled=false
 let profileCache=null
 let studentCountCache={userId:null,value:null,at:0}
@@ -14,7 +14,8 @@ const cycles={
     priceNote:'por mês',
     eyebrow:'FLEXÍVEL',
     description:'Para quem quer começar sem compromisso de longo prazo.',
-    features:['Até 30 alunos','Acesso ao FITCOACH Professional','Alunos, treinos e evolução','Agenda Pro e check-ins','Painel Pro e Smart/IA','Fotos, avisos e PWA instalável'],
+    limit:PLAN_LIMITS.monthly,
+    features:[`Até ${PLAN_LIMITS.monthly} alunos`,'Acesso ao FITCOACH Professional','Alunos, treinos e evolução','Agenda Pro e check-ins','Painel Pro e Smart/IA','Fotos, avisos e PWA instalável'],
     tag:'Renovação mensal'
   },
   semiannual:{
@@ -24,7 +25,8 @@ const cycles={
     priceNote:'por ciclo semestral',
     eyebrow:'RECOMENDADO',
     description:'Equilíbrio entre economia e acompanhamento contínuo.',
-    features:['Até 30 alunos','Tudo do plano Mensal','Ciclo de 6 meses','Ideal para acompanhamento contínuo','Menos renovações ao longo do ano','Plano recomendado'],
+    limit:PLAN_LIMITS.semiannual,
+    features:[`Até ${PLAN_LIMITS.semiannual} alunos`,'Tudo do plano Mensal','Ciclo de 6 meses','Ideal para acompanhamento contínuo','Menos renovações ao longo do ano','Plano recomendado'],
     tag:'6 meses'
   }
 }
@@ -64,6 +66,11 @@ async function getPreference(userId){
   return data||null
 }
 
+async function getPlanLimit(userId){
+  const pref=await getPreference(userId)
+  return PLAN_LIMITS[pref?.billing_cycle]||PLAN_LIMITS.free
+}
+
 async function getStudentCount(userId,force=false){
   const fresh=studentCountCache.userId===userId&&studentCountCache.value!==null&&(Date.now()-studentCountCache.at)<1200
   if(fresh&&!force)return studentCountCache.value
@@ -85,7 +92,7 @@ function cycleCard(key,current){
     <p>${p.description}</p>
     <ul>${p.features.map(f=>`<li><span>✓</span>${esc(f)}</li>`).join('')}</ul>
     <button class="btn ${selected?'sec':''} full" data-pro10-cycle="${key}">${selected?'Ciclo selecionado':`Escolher ${p.title}`}</button>
-    <small class="pro10-tag">${p.tag}</small>
+    <small class="pro10-tag">${p.tag} • até ${p.limit} alunos</small>
   </article>`
 }
 
@@ -95,14 +102,15 @@ async function openPlans(){
   if(ctx.profile?.role!=='trainer')return toast('Os planos são destinados à conta do personal.','error')
   const [pref,studentCount]=await Promise.all([getPreference(ctx.session.user.id),getStudentCount(ctx.session.user.id,true)])
   const current=cycles[pref?.billing_cycle]?pref.billing_cycle:''
+  const currentLimit=PLAN_LIMITS[pref?.billing_cycle]||PLAN_LIMITS.free
   openModal(`<div class="pro10-head">
-    <div><span class="pro10-badge">FITCOACH PROFESSIONAL • NÍVEL 10</span><h2>Escolha seu plano</h2><p>Mensal ou Semestral. Os dois incluem os recursos Professional e permitem até ${STUDENT_LIMIT} alunos.</p></div>
+    <div><span class="pro10-badge">FITCOACH PROFESSIONAL • NÍVEL 10</span><h2>Escolha seu plano</h2><p>Mensal ou Semestral, com limites diferentes de alunos para cada ciclo.</p></div>
     <button class="icon-btn" onclick="closePro10Modal()" aria-label="Fechar">×</button>
   </div>
-  <div class="pro10-status"><div><span>CARTEIRA DE ALUNOS</span><strong>${studentCount}/${STUDENT_LIMIT} alunos</strong></div><p>${studentCount>=STUDENT_LIMIT?'Limite atingido. Para cadastrar outro aluno, será necessário liberar uma vaga ou futuramente migrar para um plano com limite maior.':`Você ainda pode cadastrar ${STUDENT_LIMIT-studentCount} ${STUDENT_LIMIT-studentCount===1?'aluno':'alunos'} neste plano.`}</p></div>
+  <div class="pro10-status"><div><span>CARTEIRA DE ALUNOS</span><strong>${studentCount}/${currentLimit} alunos</strong></div><p>${studentCount>=currentLimit?'Limite atingido. Para cadastrar outro aluno, faça upgrade do ciclo ou libere uma vaga.':`Você ainda pode cadastrar ${currentLimit-studentCount} ${currentLimit-studentCount===1?'aluno':'alunos'} neste plano.`}</p></div>
   <div class="pro10-status"><div><span>STATUS DA COBRANÇA</span><strong>Checkout em preparação</strong></div><p>Os preços já estão definidos, mas selecionar um plano agora <b>não gera cobrança</b>. O pagamento online será conectado em uma próxima etapa.</p></div>
   <div class="pro10-grid">${['monthly','semiannual'].map(k=>cycleCard(k,current)).join('')}</div>
-  <div class="pro10-pricing-note"><strong>Limite do Professional</strong><span>Mensal e Semestral incluem até ${STUDENT_LIMIT} alunos ativos na carteira do personal.</span></div>`)
+  <div class="pro10-pricing-note"><strong>Limites por ciclo</strong><span>Free: até ${PLAN_LIMITS.free} alunos • Semestral: até ${PLAN_LIMITS.semiannual} • Mensal: até ${PLAN_LIMITS.monthly}.</span></div>`)
   document.querySelectorAll('[data-pro10-cycle]').forEach(btn=>btn.onclick=()=>selectCycle(btn.dataset.pro10Cycle))
 }
 
@@ -119,6 +127,7 @@ async function selectCycle(cycle){
     result=await supabase.from('trainer_plan_preferences').insert({trainer_id:uid,billing_cycle:cycle})
   }
   if(result.error)return toast(result.error.message,'error')
+  studentCountCache={userId:uid,value:null,at:0}
   toast(`Preferência salva: plano ${cycles[cycle].title}.`)
   await openPlans()
   scheduleEnhance()
@@ -139,18 +148,18 @@ async function enhanceHeader(){
 async function enhanceStudentLimit(){
   const ctx=await getContext()
   if(ctx?.profile?.role!=='trainer')return
-  const count=await getStudentCount(ctx.session.user.id)
-  const full=count>=STUDENT_LIMIT
+  const [count,limit]=await Promise.all([getStudentCount(ctx.session.user.id),getPlanLimit(ctx.session.user.id)])
+  const full=count>=limit
 
   document.querySelectorAll('#quickStudent,#newStudent').forEach(btn=>{
     btn.disabled=full
-    btn.title=full?`Limite de ${STUDENT_LIMIT} alunos atingido`:`${count}/${STUDENT_LIMIT} alunos cadastrados`
-    if(full)btn.textContent=`Limite ${STUDENT_LIMIT}/${STUDENT_LIMIT}`
+    btn.title=full?`Limite de ${limit} alunos atingido`:`${count}/${limit} alunos cadastrados`
+    if(full)btn.textContent=`Limite ${limit}/${limit}`
   })
 
   const metric=document.querySelector('.metric-card[data-go="students"]')
   const small=metric?.querySelector('small')
-  if(small)small.textContent=`${count}/${STUDENT_LIMIT} alunos no plano →`
+  if(small)small.textContent=`${count}/${limit} alunos no plano →`
 }
 
 async function enhanceHome(){
@@ -186,10 +195,10 @@ document.addEventListener('click',async e=>{
   try{
     const ctx=await getContext()
     if(ctx?.profile?.role!=='trainer')return original.call(btn,e)
-    const count=await getStudentCount(ctx.session.user.id,true)
-    if(count>=STUDENT_LIMIT){
-      btn.disabled=true;btn.textContent=`Limite ${STUDENT_LIMIT}/${STUDENT_LIMIT}`
-      toast(`Seu plano Professional permite até ${STUDENT_LIMIT} alunos.`,'error')
+    const [count,limit]=await Promise.all([getStudentCount(ctx.session.user.id,true),getPlanLimit(ctx.session.user.id)])
+    if(count>=limit){
+      btn.disabled=true;btn.textContent=`Limite ${limit}/${limit}`
+      toast(`Seu plano permite até ${limit} alunos.`,'error')
       return
     }
     original.call(btn,e)
