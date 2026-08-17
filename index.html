@@ -15,14 +15,9 @@
     <meta name="apple-mobile-web-app-title" content="FITCOACH" />
     <title>FITCOACH Professional</title>
     <link rel="stylesheet" href="./mobile-layout-fix.css" />
-    <style>body:has(input[type="password"]) #fc-home-tools,body:has(input[type="password"]) #fc-ai-btn,body:has(input[type="password"]) #fc-ai,body:has(input[type="password"]) #fcGlobalActions{display:none!important}</style>
   </head>
   <body>
     <div id="app"></div>
-    <button class="install-app-btn hidden" id="installAppButton" type="button" aria-haspopup="dialog">Instalar FITCOACH</button>
-    <div class="install-help hidden" id="installHelp" role="dialog" aria-modal="true" aria-labelledby="installHelpTitle">
-      <div class="install-help-card"><button class="install-help-close" id="closeInstallHelp" type="button" aria-label="Fechar">×</button><h2 id="installHelpTitle">Instalar FITCOACH no iPhone</h2><p>No Safari, toque em <strong>Compartilhar</strong> e depois em <strong>Adicionar à Tela de Início</strong>.</p><button class="btn" id="confirmInstallHelp" type="button">Entendi</button></div>
-    </div>
     <script>
       (() => {
         const app = document.getElementById('app')
