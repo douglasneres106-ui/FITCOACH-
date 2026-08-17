@@ -1,8 +1,7 @@
 import { supabase } from './supabase'
 
 (() => {
-  const FREE_LIMIT = 10
-  const PRO_LIMIT = 30
+  const PLAN_LIMITS = { free: 10, semiannual: 15, monthly: 30 }
   let planCache = null
   let toastTimer = null
 
@@ -46,10 +45,11 @@ import { supabase } from './supabase'
     if (profile?.role !== 'trainer') return null
     const { data: preference } = await supabase.from('trainer_plan_preferences').select('billing_cycle').eq('trainer_id', session.user.id).maybeSingle()
     const cycle = preference?.billing_cycle || 'free'
+    const limit = PLAN_LIMITS[cycle] || PLAN_LIMITS.free
     planCache = {
       cycle,
       isPro: cycle === 'monthly' || cycle === 'semiannual',
-      limit: cycle === 'free' ? FREE_LIMIT : PRO_LIMIT,
+      limit,
       label: cycle === 'monthly' ? 'Pro Mensal' : cycle === 'semiannual' ? 'Pro Semestral' : 'Free',
     }
     return planCache
@@ -99,11 +99,19 @@ import { supabase } from './supabase'
       const isMonthly = text === 'mensal'
       const isSemi = text === 'semestral'
       if (isMonthly || isSemi) {
+        const limit = isMonthly ? PLAN_LIMITS.monthly : PLAN_LIMITS.semiannual
         title.textContent = isMonthly ? 'Pro Mensal' : 'Pro Semestral'
         const top = card.querySelector('.pro10-plan-top')
         if (top && !top.querySelector('.fc-plan-pro-badge')) top.insertAdjacentHTML('beforeend', '<span class="fc-plan-pro-badge">PRO</span>')
         const list = card.querySelector('ul')
-        if (list && !list.querySelector('.fc-plan-ai')) list.insertAdjacentHTML('beforeend', '<li class="fc-plan-ai"><span>✓</span>IA FITCOACH liberada</li>')
+        if (list) {
+          const limitItem = [...list.querySelectorAll('li')].find(li => /Até \d+ alunos/i.test(li.textContent || ''))
+          if (limitItem) limitItem.innerHTML = `<span>✓</span>Até ${limit} alunos`
+          else list.insertAdjacentHTML('afterbegin', `<li><span>✓</span>Até ${limit} alunos</li>`)
+          if (!list.querySelector('.fc-plan-ai')) list.insertAdjacentHTML('beforeend', '<li class="fc-plan-ai"><span>✓</span>IA FITCOACH liberada</li>')
+        }
+        const tag = card.querySelector('.pro10-tag')
+        if (tag) tag.textContent = `${isMonthly ? 'Renovação mensal' : '6 meses'} • até ${limit} alunos`
       }
     })
 
@@ -113,7 +121,7 @@ import { supabase } from './supabase'
       const p = status.querySelector('p')
       if (strong) strong.textContent = `${plan.limit} alunos • ${plan.label}`
       if (p) p.textContent = plan.isPro
-        ? 'Plano Pro ativo: até 30 alunos e IA FITCOACH liberada.'
+        ? `${plan.label} ativo: até ${plan.limit} alunos e IA FITCOACH liberada.`
         : 'Plano Free ativo: até 10 alunos. Faça upgrade para o Pro e libere a IA FITCOACH.'
     }
 
@@ -121,18 +129,16 @@ import { supabase } from './supabase'
     if (pricing) {
       const strong = pricing.querySelector('strong')
       const span = pricing.querySelector('span')
-      if (strong) strong.textContent = plan.isPro ? 'Recursos Pro liberados' : 'Limites do plano Free'
-      if (span) span.textContent = plan.isPro
-        ? 'Pro Mensal e Pro Semestral: até 30 alunos + IA FITCOACH.'
-        : 'Free: até 10 alunos. IA FITCOACH disponível somente nos planos Pro.'
+      if (strong) strong.textContent = plan.isPro ? 'Recursos Pro liberados' : 'Limites dos planos'
+      if (span) span.textContent = `Free: até ${PLAN_LIMITS.free} alunos • Pro Semestral: até ${PLAN_LIMITS.semiannual} • Pro Mensal: até ${PLAN_LIMITS.monthly}.`
     }
 
     if (!modal.querySelector('.fc-plan-note')) {
       const note = document.createElement('div')
       note.className = 'fc-plan-note'
       note.innerHTML = plan.isPro
-        ? '<strong>IA FITCOACH liberada</strong><span>Seu plano Pro permite usar a IA para criar sugestões de treino. O personal continua responsável pela revisão e prescrição final.</span>'
-        : '<strong>Desbloqueie a IA FITCOACH</strong><span>Escolha o Pro Mensal ou Pro Semestral para liberar a IA e ampliar sua carteira para até 30 alunos.</span>'
+        ? `<strong>IA FITCOACH liberada</strong><span>${plan.label} permite usar a IA para criar sugestões de treino e sua carteira suporta até ${plan.limit} alunos. O personal continua responsável pela revisão e prescrição final.</span>`
+        : '<strong>Desbloqueie a IA FITCOACH</strong><span>Escolha o Pro Mensal ou Pro Semestral para liberar a IA. O Semestral permite até 15 alunos e o Mensal até 30 alunos.</span>'
       pricing?.insertAdjacentElement('afterend', note)
     }
 
