@@ -1,9 +1,10 @@
 // FITCOACH PWA
 // O botão "Instalar FITCOACH" aparece SOMENTE nas telas de login/criação de conta.
-// Depois que o usuário entra no app, o botão é removido de qualquer área da interface.
+// Atualizações publicadas são verificadas automaticamente sem trocar o link do app.
 
 (() => {
   let deferredPrompt = null
+  let reloading = false
   const INSTALL_TEXT = /instalar\s*fitcoach|instalar\s*fit\s*coach/i
 
   const isAuthScreen = () => !!document.querySelector(
@@ -43,37 +44,48 @@
       deferredPrompt = null
       return
     }
-    // Safari/iOS não expõe beforeinstallprompt: orientar pelo menu Compartilhar.
     showIOSInstructions()
   }
 
   const addLoginInstallButton = () => {
     if (!isAuthScreen()) return
     if (document.querySelector('[data-fc-install-button]')) return
-
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'btn sec full fc-install-button'
     button.dataset.fcInstallButton = 'true'
     button.textContent = 'Instalar FITCOACH'
     button.addEventListener('click', install)
-
     const submit = document.querySelector('.auth-submit, #submit')
     const card = submit?.closest('.auth-card, .card')
-    if (card && submit) {
-      submit.insertAdjacentElement('afterend', button)
-    } else {
-      const target = document.querySelector('.auth-card, .auth-wrap, .login')
-      target?.appendChild(button)
-    }
+    if (card && submit) submit.insertAdjacentElement('afterend', button)
+    else document.querySelector('.auth-card, .auth-wrap, .login')?.appendChild(button)
   }
 
   const sync = () => {
-    if (isAuthScreen()) {
-      addLoginInstallButton()
-    } else {
-      removeInstallButtons()
-    }
+    if (isAuthScreen()) addLoginInstallButton()
+    else removeInstallButtons()
+  }
+
+  const applyUpdate = (registration) => {
+    if (!registration?.waiting) return
+    registration.waiting.postMessage({ type: 'FITCOACH_SKIP_WAITING' })
+  }
+
+  const watchForUpdates = async () => {
+    if (!('serviceWorker' in navigator)) return
+    const registration = await navigator.serviceWorker.ready
+    applyUpdate(registration)
+    await registration.update().catch(() => {})
+    applyUpdate(registration)
+    setInterval(() => registration.update().catch(() => {}), 60_000)
+    registration.addEventListener('updatefound', () => {
+      const worker = registration.installing
+      if (!worker) return
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) applyUpdate(registration)
+      })
+    })
   }
 
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -88,10 +100,15 @@
   })
 
   if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return
+      reloading = true
+      window.location.reload()
+    })
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.warn('Service Worker não registrado:', error)
-      })
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(watchForUpdates)
+        .catch((error) => console.warn('Service Worker não registrado:', error))
     })
   }
 
