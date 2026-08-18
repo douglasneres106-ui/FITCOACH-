@@ -1,4 +1,18 @@
 {
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/api/ai-workout", "destination": "/api/ai-workout-gated" },
     { "source": "/atlas-engine", "destination": "https://jixiangying.github.io/anatomy/" },
