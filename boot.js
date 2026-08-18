@@ -9,6 +9,7 @@
     './home-ai-checkin.js',
     './chat-ia.js',
     './ai-role-auto.js',
+    './pro-ai.js',
     './ui-plan-edit-actions.js',
     './pro-level14.js',
     './pro-level15.js',
