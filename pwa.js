@@ -6,6 +6,7 @@
   let deferredPrompt = null
   let reloading = false
   const INSTALL_TEXT = /instalar\s*fitcoach|instalar\s*fit\s*coach/i
+  const RECOVERY_KEY = 'fitcoach_pwa_recovery_v1'
 
   const isAuthScreen = () => !!document.querySelector(
     'input[type="password"], .auth-screen, .auth-card, .login, [data-login], #login'
@@ -67,6 +68,25 @@
     else removeInstallButtons()
   }
 
+  const recoverBrokenPWA = async () => {
+    if (!('serviceWorker' in navigator) || localStorage.getItem(RECOVERY_KEY) === 'done') return false
+    let registrations = []
+    try { registrations = await navigator.serviceWorker.getRegistrations() } catch {}
+    if (!registrations.length) return false
+    localStorage.setItem(RECOVERY_KEY, 'done')
+    await Promise.all(registrations.map(r => r.unregister().catch(() => false)))
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys()
+        await Promise.all(keys.map(key => caches.delete(key)))
+      } catch {}
+    }
+    const cleanUrl = new URL(window.location.href)
+    cleanUrl.searchParams.set('fc-recovery', '1')
+    window.location.replace(cleanUrl.toString())
+    return true
+  }
+
   const applyUpdate = (registration) => {
     if (!registration?.waiting) return
     registration.waiting.postMessage({ type: 'FITCOACH_SKIP_WAITING' })
@@ -99,19 +119,26 @@
     removeInstallButtons()
   })
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (reloading) return
-      reloading = true
-      window.location.reload()
-    })
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+  const bootPWA = async () => {
+    try {
+      if (await recoverBrokenPWA()) return
+    } catch (error) {
+      console.warn('FITCOACH PWA recovery failed:', error)
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return
+        reloading = true
+        window.location.reload()
+      })
+      await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
         .then(watchForUpdates)
         .catch((error) => console.warn('Service Worker não registrado:', error))
-    })
+    }
   }
 
   sync()
   new MutationObserver(sync).observe(document.body, { childList: true, subtree: true })
+  window.addEventListener('load', bootPWA, { once: true })
 })()
