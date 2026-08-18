@@ -65,7 +65,7 @@ function openDigitalProducts(){
   panel.className='fc-products-panel'
   panel.innerHTML=`<section class="fc-products-card" role="dialog" aria-modal="true" aria-label="Produtos digitais FITCOACH">
     <header class="fc-products-head">
-      <div><div class="fc-products-kicker">FITCOACH STORE</div><h2>Produtos digitais</h2><p>Produtos prontos para gerar uma nova fonte de receita dentro do FITCOACH.</p></div>
+      <div><div class="fc-products-kicker">FITCOACH STORE</div><h2>Produtos digitais para Personal</h2><p>Materiais e programas digitais para o personal vender, aplicar aos alunos ou usar no próprio atendimento.</p></div>
       <button class="fc-products-close" onclick="closeDigitalProducts()" aria-label="Fechar">×</button>
     </header>
     <div class="fc-products-grid">${DIGITAL_PRODUCTS.map(p=>`<article class="fc-product">
@@ -73,7 +73,7 @@ function openDigitalProducts(){
       <h3>${p.title}</h3><p>${p.description}</p>
       <div class="fc-product-bottom"><strong class="fc-product-price">${p.price}</strong><button class="fc-product-buy" data-digital-buy="${p.id}">Quero adquirir</button></div>
     </article>`).join('')}</div>
-    <div class="fc-products-note">Os produtos estão cadastrados no catálogo. O próximo passo para cobrança automática é conectar os links/checkout de pagamento de cada produto.</div>
+    <div class="fc-products-note">Catálogo exclusivo do ambiente do Personal. O próximo passo para cobrança automática é conectar os links/checkout de pagamento de cada produto.</div>
   </section>`
   panel.addEventListener('click',event=>{if(event.target===panel)closeDigitalProducts()})
   panel.querySelectorAll('[data-digital-buy]').forEach(button=>button.onclick=()=>requestDigitalProduct(button.dataset.digitalBuy))
@@ -83,6 +83,8 @@ function openDigitalProducts(){
 function injectDigitalProductsButton(){
   const nav=document.querySelector('.nav')
   if(!nav || nav.querySelector('[data-digital-products]')) return
+  const isTrainer=typeof profile!=='undefined' && profile?.role==='trainer'
+  if(!isTrainer) return
   const button=document.createElement('button')
   button.className='fc-products-btn'
   button.dataset.digitalProducts='true'
