@@ -1,5 +1,5 @@
-const CACHE_NAME = 'fitcoach-v24'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png']
+const CACHE_NAME = 'fitcoach-v26'
+const APP_SHELL = ['/manifest.webmanifest','/icon-192.png','/icon-512.png','/apple-touch-icon.png']
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -27,21 +27,19 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
 
+  // Never serve cached HTML/navigation. This prevents a broken installed PWA
+  // from being resurrected from an old app shell.
   if (request.mode === 'navigate' || url.pathname === '/index.html') {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' })
-        .then(response => response)
-        .catch(() => caches.match('/index.html').then(cached => cached || caches.match('/')))
-    )
+    event.respondWith(fetch(request, { cache: 'no-store' }))
     return
   }
 
   event.respondWith(
     fetch(request, { cache: 'no-store' })
       .then(response => {
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && response.type === 'basic') {
           const copy = response.clone()
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy))
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy)).catch(() => {})
         }
         return response
       })
