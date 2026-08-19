@@ -1,24 +1,5 @@
 (() => {
   const app = document.querySelector('#app')
-  const optionalModules = [
-    './planos-fitcoach.js',
-    './features-loader.js',
-    './pro-suite.js',
-    './pro-suite-v2.js',
-    './pro-plan-gate.js',
-    './home-ai-checkin.js',
-    './chat-ia.js',
-    './ai-role-auto.js',
-    './pro-ai.js',
-    './trainer-ai-home.js',
-    './ui-plan-edit-actions.js',
-    './pro-level14.js',
-    './pro-level15.js',
-    './plans-header.js',
-    './auth-ui-cleanup.js',
-    './produtos-digitais.js',
-    './pwa.js',
-  ]
 
   const showFatal = (error) => {
     if (!app) return
@@ -36,6 +17,32 @@
     document.querySelector('#fcBootRetry')?.addEventListener('click', () => location.reload())
   }
 
+  const loadOptional = async () => {
+    // Literal imports are required here so Vite fingerprints and serves each module.
+    await Promise.allSettled([
+      import('./planos-fitcoach.js'),
+      import('./features-loader.js'),
+      import('./pro-suite.js'),
+      import('./pro-suite-v2.js'),
+      import('./pro-plan-gate.js'),
+      import('./home-ai-checkin.js'),
+      import('./chat-ia.js'),
+      import('./ai-role-auto.js'),
+      import('./pro-ai.js'),
+      import('./trainer-ai-home.js'),
+      import('./ui-plan-edit-actions.js'),
+      import('./pro-level14.js'),
+      import('./pro-level15.js'),
+      import('./plans-header.js'),
+      import('./auth-ui-cleanup.js'),
+      import('./produtos-digitais.js'),
+      import('./pwa.js'),
+    ].map(promise => promise.catch(error => {
+      console.warn('FITCOACH optional module failed', error)
+      return null
+    })))
+  }
+
   const load = async () => {
     try {
       await import('./main.js')
@@ -44,14 +51,7 @@
       showFatal(error)
       return
     }
-
-    await Promise.allSettled(optionalModules.map(async (path) => {
-      try {
-        await import(path)
-      } catch (error) {
-        console.warn(`FITCOACH optional module failed: ${path}`, error)
-      }
-    }))
+    await loadOptional()
   }
 
   load()
