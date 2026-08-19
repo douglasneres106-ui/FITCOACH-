@@ -18,7 +18,7 @@
   }
 
   const loadOptional = async () => {
-    // Literal imports are required here so Vite fingerprints and serves each module.
+    // Literal imports let Vite fingerprint and bundle every optional FITCOACH module.
     await Promise.allSettled([
       import('./planos-fitcoach.js'),
       import('./features-loader.js'),
@@ -33,6 +33,7 @@
       import('./ui-plan-edit-actions.js'),
       import('./pro-level14.js'),
       import('./pro-level15.js'),
+      import('./pro-level16.js'),
       import('./plans-header.js'),
       import('./auth-ui-cleanup.js'),
       import('./produtos-digitais.js'),
