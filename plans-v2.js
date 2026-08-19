@@ -1,0 +1,99 @@
+import './plans-v2.css'
+import { supabase } from './supabase'
+
+(() => {
+  if (window.__FITCOACH_PLANS_V2__) return
+  window.__FITCOACH_PLANS_V2__ = true
+  const LIMITS = { free: 10, semiannual: 15, monthly: 30 }
+  const proFeatures = [
+    'Mais alunos', 'IA', 'Recursos profissionais', 'Produtos Digitais',
+    'Biblioteca de fichas', 'Programas de treino', 'Planner Fitness',
+    'Kit de avaliação', 'Venda de produtos aos alunos'
+  ]
+  const esc = (v='') => String(v).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))
+
+  async function context() {
+    const { data:{session} } = await supabase.auth.getSession()
+    if (!session) return null
+    const { data:profile } = await supabase.from('profiles').select('role,full_name').eq('id', session.user.id).maybeSingle()
+    return { session, profile }
+  }
+  async function preference(uid) {
+    const { data } = await supabase.from('trainer_plan_preferences').select('billing_cycle,updated_at').eq('trainer_id', uid).maybeSingle()
+    return data || null
+  }
+  async function count(uid) {
+    const { count, error } = await supabase.from('students').select('id',{count:'exact',head:true}).eq('trainer_id',uid)
+    if (error) throw error
+    return count || 0
+  }
+  function tier(pref) { return pref?.billing_cycle ? 'pro' : 'free' }
+  function limit(pref) { return pref?.billing_cycle === 'monthly' ? LIMITS.monthly : pref?.billing_cycle === 'semiannual' ? LIMITS.semiannual : LIMITS.free }
+  function cycleName(c) { return c === 'monthly' ? 'Mensal' : c === 'semiannual' ? 'Semestral' : 'Livre' }
+
+  function hideOldPlanModal() { document.querySelector('#pro10Modal')?.remove() }
+  function modal(html) {
+    document.querySelector('#fcPlansV2')?.remove()
+    const root = document.createElement('div'); root.id='fcPlansV2'; root.className='fc-plans-v2-modal'
+    root.innerHTML = `<section class="fc-plans-v2-card" role="dialog" aria-modal="true"><button class="fc-plans-v2-close" type="button" aria-label="Fechar">×</button>${html}</section>`
+    root.onclick=e=>{if(e.target===root)root.remove()}
+    document.body.appendChild(root)
+    root.querySelector('.fc-plans-v2-close').onclick=()=>root.remove()
+  }
+
+  async function openPlans() {
+    const ctx = await context()
+    if (!ctx?.session) return
+    if (ctx.profile?.role !== 'trainer') return
+    hideOldPlanModal()
+    const [pref, students] = await Promise.all([preference(ctx.session.user.id), count(ctx.session.user.id)])
+    const currentTier=tier(pref), currentLimit=limit(pref)
+    modal(`<header class="fc-plans-v2-head"><div><span class="fc-plans-v2-kicker">FITCOACH</span><h2>Planos para o seu Personal</h2><p>Comece no Livre e evolua para o Pro quando precisar de mais capacidade e ferramentas profissionais.</p></div><span class="fc-plans-v2-current">${currentTier==='pro'?'PRO • '+cycleName(pref.billing_cycle):'LIVRE'}</span></header>
+      <div class="fc-plans-v2-usage"><strong>${students}/${currentLimit} alunos</strong><span>${currentTier==='free'?'No plano Livre':'No plano Pro'} • limite atual</span><div><i style="width:${Math.min(100,(students/currentLimit)*100)}%"></i></div></div>
+      <div class="fc-plans-v2-grid">
+        <article class="fc-plans-v2-plan ${currentTier==='free'?'selected':''}"><span class="fc-plans-v2-badge">🆓 FREE</span><h3>Livre</h3><p>Para começar a organizar seus alunos e treinos.</p><div class="fc-plans-v2-limit">Até <b>${LIMITS.free}</b> alunos</div><ul><li>✓ Recursos básicos</li><li>✓ Alunos e treinos</li><li>✓ Acompanhamento de evolução</li><li class="off">— Sem Produtos Digitais</li><li class="off">— Sem recursos Pro</li></ul><button class="btn ${currentTier==='free'?'sec':''} full" id="fcPlanFree">${currentTier==='free'?'Plano atual':'Usar Livre'}</button></article>
+        <article class="fc-plans-v2-plan pro ${currentTier==='pro'?'selected':''}"><div class="fc-plans-v2-popular">PRO • VERSÃO PAGA</div><span class="fc-plans-v2-badge">⭐ PRO</span><h3>Professional</h3><p>Mais alunos, IA e o ecossistema profissional do FITCOACH.</p><div class="fc-plans-v2-limit">Até <b>${LIMITS.monthly}</b> alunos no Mensal <small>• ${LIMITS.semiannual} no Semestral</small></div><ul>${proFeatures.map(f=>`<li>✓ ${esc(f)}</li>`).join('')}</ul><div class="fc-plans-v2-cycles"><button data-cycle="semiannual" class="${pref?.billing_cycle==='semiannual'?'active':''}">Semestral <b>R$ 29,99</b></button><button data-cycle="monthly" class="${pref?.billing_cycle==='monthly'?'active':''}">Mensal <b>R$ 49,99</b></button></div><button class="btn full" id="fcPlanPro">${currentTier==='pro'?'Plano Pro atual':'Ativar Pro'}</button></article>
+      </div>
+      <p class="fc-plans-v2-foot">O checkout continua preparado para a próxima etapa. A escolha do plano salva a preferência, mas não cobra automaticamente.</p>`)
+    root = document.querySelector('#fcPlansV2')
+    root.querySelector('#fcPlanFree').onclick=()=>setFree(ctx.session.user.id)
+    root.querySelectorAll('[data-cycle]').forEach(b=>b.onclick=()=>setPro(ctx.session.user.id,b.dataset.cycle))
+    root.querySelector('#fcPlanPro').onclick=()=>setPro(ctx.session.user.id,root.querySelector('[data-cycle].active')?.dataset.cycle||'monthly')
+  }
+
+  async function setFree(uid) {
+    const { error } = await supabase.from('trainer_plan_preferences').delete().eq('trainer_id',uid)
+    if(error) return alert(error.message)
+    document.querySelector('#fcPlansV2')?.remove(); applyGate('free'); schedule()
+  }
+  async function setPro(uid,cycle) {
+    const { data:existing } = await supabase.from('trainer_plan_preferences').select('trainer_id').eq('trainer_id',uid).maybeSingle()
+    const result = existing
+      ? await supabase.from('trainer_plan_preferences').update({billing_cycle:cycle,updated_at:new Date().toISOString()}).eq('trainer_id',uid)
+      : await supabase.from('trainer_plan_preferences').insert({trainer_id:uid,billing_cycle:cycle})
+    if(result.error) return alert(result.error.message)
+    document.querySelector('#fcPlansV2')?.remove(); applyGate('pro'); schedule()
+  }
+
+  function applyGate(currentTier) {
+    const proOnly=['#fc-pro-launcher','#pro6AIHome','#pro5SmartHome','#pro5SmartHome','#pro16ProductsHome','#pro15ProductsHome']
+    proOnly.forEach(sel=>document.querySelectorAll(sel).forEach(el=>el.style.display=currentTier==='pro'?'':'none'))
+    document.querySelectorAll('[data-pro6-ai],[data-pro5-smart]').forEach(el=>el.style.display=currentTier==='pro'?'':'none')
+    const badge=document.querySelector('#pro10PlansHome')
+    if(badge) badge.textContent=currentTier==='pro'?'⭐ Plano Pro':'◆ Ver planos'
+  }
+  async function refreshGate() {
+    const ctx=await context(); if(ctx?.profile?.role!=='trainer') return
+    const pref=await preference(ctx.session.user.id); applyGate(tier(pref))
+  }
+  function hookPlanButtons() {
+    document.querySelectorAll('#pro10PlansHeader,#pro10PlansHome').forEach(btn=>{
+      btn.onclick=openPlans
+      btn.dataset.plansV2='1'
+    })
+  }
+  function schedule() { setTimeout(()=>{hookPlanButtons();refreshGate().catch(()=>{})},180) }
+  const observer=new MutationObserver(schedule)
+  observer.observe(document.documentElement,{subtree:true,childList:true})
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',schedule,{once:true}); else schedule()
+})()
